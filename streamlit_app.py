@@ -229,26 +229,26 @@ def analyze_with_openrouter(api_key, model, content, user_query):
     return response.json()['choices'][0]['message']['content']
 
 def main():
-    st.title("Enhanced PubMed Search App")
+  st.title("Enhanced PubMed Search App")
 
-    # OpenRouter API Key input
-    if "openrouter_api_key" not in st.session_state:
-        st.session_state.openrouter_api_key = ""
-    st.session_state.openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password", value=st.session_state.openrouter_api_key)
+  # OpenRouter API Key input
+  if "openrouter_api_key" not in st.session_state:
+      st.session_state.openrouter_api_key = ""
+  st.session_state.openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password", value=st.session_state.openrouter_api_key)
 
-    # Model selection
-    model_options = {
-        "Claude 3.5 Sonnet": "anthropic/claude-3.5-sonnet",
-        "GPT-4 Mini": "openai/gpt-4o-mini",
-        "GPT-4": "openai/gpt-4o",
-        "Cohere Command": "cohere/command-r",
-        "Google Gemini Pro": "google/gemini-pro-1.5"
-    }
-    if "selected_model" not in st.session_state:
-        st.session_state.selected_model = list(model_options.keys())[0]
-    st.session_state.selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=list(model_options.keys()).index(st.session_state.selected_model))
+  # Model selection
+  model_options = {
+      "Claude 3.5 Sonnet": "anthropic/claude-3.5-sonnet",
+      "GPT-4 Mini": "openai/gpt-4o-mini",
+      "GPT-4": "openai/gpt-4o",
+      "Cohere Command": "cohere/command-r",
+      "Google Gemini Pro": "google/gemini-pro-1.5"
+  }
+  if "selected_model" not in st.session_state:
+      st.session_state.selected_model = list(model_options.keys())[0]
+  st.session_state.selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=list(model_options.keys()).index(st.session_state.selected_model))
 
-    # Search parameters
+  # Search parameters
   if "query" not in st.session_state:
       st.session_state.query = ""
   st.session_state.query = st.text_input("Enter your PubMed search query:", value=st.session_state.query)
