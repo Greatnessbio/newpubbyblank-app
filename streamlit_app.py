@@ -228,10 +228,7 @@ def analyze_with_openrouter(api_key, model, content, user_query):
     )
     return response.json()['choices'][0]['message']['content']
 
-def main():
-    st.title("Enhanced PubMed Search App")
-
-    # OpenRouter API Key input
+# OpenRouter API Key input
     if "openrouter_api_key" not in st.session_state:
         st.session_state.openrouter_api_key = ""
     st.session_state.openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password", value=st.session_state.openrouter_api_key)
@@ -248,7 +245,7 @@ def main():
         st.session_state.selected_model = list(model_options.keys())[0]
     st.session_state.selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=list(model_options.keys()).index(st.session_state.selected_model))
 
-        # Search parameters
+    # Search parameters
     if "query" not in st.session_state:
         st.session_state.query = ""
     st.session_state.query = st.text_input("Enter your PubMed search query:", value=st.session_state.query)
