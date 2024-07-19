@@ -254,7 +254,13 @@ def main():
         
         with col1:
             date_range = st.selectbox("Publication Date:", 
-                                      ["Any Time", "Last Year", "Last 5 Years
+                                      ["Any Time", "Last Year", "Last 5 Years", "Last 10 Years", "Custom Range"])
+            if date_range == "Custom Range":
+                start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365))
+                end_date = st.date_input("End Date", datetime.now())
+            
+            article_type = st.multiselect("Article Type:", 
+                                          ["Journal Article", "Clinical Trial", "Meta-Analysis", "Randomized Controlled Trial", "Review"])
 def main():
     st.title("Enhanced PubMed Search App")
 
