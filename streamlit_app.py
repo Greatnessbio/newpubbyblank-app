@@ -232,7 +232,9 @@ def main():
     st.title("Enhanced PubMed Search App")
 
     # OpenRouter API Key input
-    openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password")
+    if "openrouter_api_key" not in st.session_state:
+        st.session_state.openrouter_api_key = ""
+    st.session_state.openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password", value=st.session_state.openrouter_api_key)
 
     # Model selection
     model_options = {
@@ -242,44 +244,18 @@ def main():
         "Cohere Command": "cohere/command-r",
         "Google Gemini Pro": "google/gemini-pro-1.5"
     }
-    selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=0)
+    if "selected_model" not in st.session_state:
+        st.session_state.selected_model = list(model_options.keys())[0]
+    st.session_state.selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=list(model_options.keys()).index(st.session_state.selected_model))
 
-    # Search parameters
-    query = st.text_input("Enter your PubMed search query:", "")
-    num_pages = st.number_input("Number of pages to scrape (1 page = 10 results)", min_value=1, max_value=100, value=1)
-
-    # Advanced search options
-    with st.expander("Advanced Search Options"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            date_range = st.selectbox("Publication Date:", 
-                                      ["Any Time", "Last Year", "Last 5 Years", "Last 10 Years", "Custom Range"])
-            if date_range == "Custom Range":
-                start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365))
-                end_date = st.date_input("End Date", datetime.now())
-            
-            article_type = st.multiselect("Article Type:", 
-                                          ["Journal Article", "Clinical Trial", "Meta-Analysis", "Randomized Controlled Trial", "Review"])
-def main():
-    st.title("Enhanced PubMed Search App")
-
-    # OpenRouter API Key input
-    openrouter_api_key = st.text_input("Enter your OpenRouter API Key:", type="password")
-
-    # Model selection
-    model_options = {
-        "Claude 3.5 Sonnet": "anthropic/claude-3.5-sonnet",
-        "GPT-4 Mini": "openai/gpt-4o-mini",
-        "GPT-4": "openai/gpt-4o",
-        "Cohere Command": "cohere/command-r",
-        "Google Gemini Pro": "google/gemini-pro-1.5"
-    }
-    selected_model = st.selectbox("Select AI Model:", list(model_options.keys()), index=0)
-
-    # Search parameters
-    query = st.text_input("Enter your PubMed search query:", "")
-    num_pages = st.number_input("Number of pages to scrape (1 page = 10 results)", min_value=1, max_value=100, value=1)
+        # Search parameters
+    if "query" not in st.session_state:
+        st.session_state.query = ""
+    st.session_state.query = st.text_input("Enter your PubMed search query:", value=st.session_state.query)
+    
+    if "num_pages" not in st.session_state:
+        st.session_state.num_pages = 1
+    st.session_state.num_pages = st.number_input("Number of pages to scrape (1 page = 10 results)", min_value=1, max_value=100, value=st.session_state.num_pages)
 
     # Advanced search options
     with st.expander("Advanced Search Options"):
@@ -301,7 +277,7 @@ def main():
             sort_by = st.selectbox("Sort Results By:", 
                                    ["Most Recent", "Best Match", "Most Cited", "Recently Added"])
 
-    if st.button("Search PubMed") and query:
+    if st.button("Search PubMed") and st.session_state.query:
         # Construct filters
         filters = []
         
@@ -334,23 +310,25 @@ def main():
 
         filters_str = "&".join(filters)
 
-        start_time = time.time()
+        @st.cache_data
+        def fetch_pubmed_results(query, filters_str, num_pages):
+            return asyncio.run(scrape_pubmed(query, filters_str, num_pages))
+
         with st.spinner("Searching PubMed and retrieving results..."):
-            results = asyncio.run(scrape_pubmed(query, filters_str, num_pages))
-            df = pd.DataFrame(results)
-        end_time = time.time()
-        
-        if not df.empty:
-            st.success(f"Scraped {len(df)} articles in {end_time - start_time:.2f} seconds!")
+            st.session_state.results = fetch_pubmed_results(st.session_state.query, filters_str, st.session_state.num_pages)
+            st.session_state.df = pd.DataFrame(st.session_state.results)
+
+        if not st.session_state.df.empty:
+            st.success(f"Scraped {len(st.session_state.df)} articles")
             
             st.subheader("Raw Search Results")
-            display_df = df.copy()
+            display_df = st.session_state.df.copy()
             display_df['authors'] = display_df['authors'].apply(lambda x: ', '.join([author[0] for author in x]))
             st.dataframe(display_df)
             
             # Parse author information
             all_authors = []
-            for _, row in df.iterrows():
+            for _, row in st.session_state.df.iterrows():
                 authors = parse_author_info(row['authors'])
                 for author in authors:
                     author.update({
@@ -371,48 +349,51 @@ def main():
                     })
                 all_authors.extend(authors)
             
-            author_df = pd.DataFrame(all_authors)
+            st.session_state.author_df = pd.DataFrame(all_authors)
             
             st.subheader("Parsed Data with All Data Points")
-            st.dataframe(author_df)
+            st.dataframe(st.session_state.author_df)
             
             # User input for additional search term
-            additional_search_term = st.text_input("Enter an additional search term to filter and analyze results:")
+            if "additional_search_term" not in st.session_state:
+                st.session_state.additional_search_term = ""
+            st.session_state.additional_search_term = st.text_input("Enter an additional search term to filter and analyze results:", value=st.session_state.additional_search_term)
             
-            if additional_search_term and openrouter_api_key:
-                with st.spinner("Analyzing articles with AI..."):
-                    filtered_results = []
-                    for _, row in author_df.iterrows():
-                        content = f"Title: {row['article_title']}\nAbstract: {row['abstract']}\nBackground: {row['background']}\nResults: {row['results']}\nConclusion: {row['conclusion']}"
-                        analysis = analyze_with_openrouter(openrouter_api_key, model_options[selected_model], content, additional_search_term)
-                        if analysis != "Not relevant":
-                            row['ai_analysis'] = analysis
-                            filtered_results.append(row)
-                    
-                    filtered_df = pd.DataFrame(filtered_results)
-                    
-                    if not filtered_df.empty:
-                        st.subheader("Filtered and Analyzed Results")
-                        st.dataframe(filtered_df)
+            if st.session_state.additional_search_term and st.session_state.openrouter_api_key:
+                if st.button("Analyze with AI"):
+                    with st.spinner("Analyzing articles with AI..."):
+                        filtered_results = []
+                        for _, row in st.session_state.author_df.iterrows():
+                            content = f"Title: {row['article_title']}\nAbstract: {row['abstract']}\nBackground: {row['background']}\nResults: {row['results']}\nConclusion: {row['conclusion']}"
+                            analysis = analyze_with_openrouter(st.session_state.openrouter_api_key, model_options[st.session_state.selected_model], content, st.session_state.additional_search_term)
+                            if analysis != "Not relevant":
+                                row['ai_analysis'] = analysis
+                                filtered_results.append(row)
                         
-                        csv = filtered_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="Download filtered results as CSV",
-                            data=csv,
-                            file_name="pubmed_filtered_results.csv",
-                            mime="text/csv",
-                        )
-                    else:
-                        st.warning("No articles matched the additional search term.")
-            elif additional_search_term:
+                        st.session_state.filtered_df = pd.DataFrame(filtered_results)
+                        
+                        if not st.session_state.filtered_df.empty:
+                            st.subheader("Filtered and Analyzed Results")
+                            st.dataframe(st.session_state.filtered_df)
+                            
+                            csv = st.session_state.filtered_df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="Download filtered results as CSV",
+                                data=csv,
+                                file_name="pubmed_filtered_results.csv",
+                                mime="text/csv",
+                            )
+                        else:
+                            st.warning("No articles matched the additional search term.")
+            elif st.session_state.additional_search_term:
                 st.warning("Please enter your OpenRouter API Key to use the AI analysis feature.")
             
             # Display basic statistics
             st.subheader("Search Statistics")
-            st.write(f"Total articles found: {len(df)}")
-            st.write(f"Total authors: {len(author_df)}")
-            st.write(f"Unique journals: {df['journal'].nunique()}")
-            st.write(f"Date range: {df['date'].min()} to {df['date'].max()}")
+            st.write(f"Total articles found: {len(st.session_state.df)}")
+            st.write(f"Total authors: {len(st.session_state.author_df)}")
+            st.write(f"Unique journals: {st.session_state.df['journal'].nunique()}")
+            st.write(f"Date range: {st.session_state.df['date'].min()} to {st.session_state.df['date'].max()}")
         
         else:
             st.error("No results found. Please try a different query or increase the number of pages.")
